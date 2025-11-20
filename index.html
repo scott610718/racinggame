@@ -3,835 +3,972 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>D1 Mini 溫度監控系統</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <title>極速溫控 - 雙人 3D 賽車對決 (Ultimate Edition)</title>
+    <!-- 引入 Three.js 用於 3D 渲染 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&family=Roboto:wght@400;700&display=swap');
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body { overflow: hidden; background-color: #000; font-family: 'Roboto', sans-serif; color: white; }
 
-        /* 星空背景 */
-        #starfield {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -1;
-        }
+        /* UI 層級管理 */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #game-canvas { position: fixed; top: 0; left: 0; z-index: 1; }
+        
+        /* 煙火 Canvas - 移到最上層 (z-index: 300) */
+        #fireworks { position: fixed; top: 0; left: 0; pointer-events: none; z-index: 300; mix-blend-mode: screen; }
 
-        /* 登入介面 */
-        .login-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        /* 登入畫面 */
+        #login-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #0d0d2b 0%, #000000 100%);
+            z-index: 100;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
+            justify-content: center;
+            pointer-events: auto;
+            overflow-y: auto;
         }
 
-        .login-box {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            max-width: 500px;
-            width: 90%;
-            animation: fadeIn 0.5s ease;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .login-box h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 30px;
-            font-size: 2em;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-        }
-
-        .input-group label {
-            display: block;
-            color: #333;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .input-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: all 0.3s;
-        }
-
-        .input-group input:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .login-btn {
-            width: 100%;
-            padding: 15px;
-            font-size: 1.1em;
-            font-weight: 600;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            transition: all 0.3s;
-            margin-top: 10px;
-        }
-
-        .login-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
-        }
-
-        /* 主要內容 */
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .header {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .header h1 {
-            color: #667eea;
-            font-size: 2.5em;
-            margin-bottom: 10px;
-        }
-
-        .user-info-display {
-            color: #666;
-            font-size: 1.1em;
-            margin-top: 15px;
-        }
-
-        .user-info-display strong {
-            color: #333;
-        }
-
-        /* 主題選擇器 */
-        .theme-selector {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-        }
-
-        .theme-selector h3 {
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .theme-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .theme-btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            color: white;
-            transition: all 0.3s;
-        }
-
-        .theme-btn:hover {
-            transform: scale(1.05);
-        }
-
-        /* 控制面板 */
-        .controls {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-            backdrop-filter: blur(10px);
-        }
-
-        .button-group {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-        }
-
-        button {
-            padding: 12px 30px;
-            font-size: 1em;
-            font-weight: 600;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            flex: 1;
-            min-width: 150px;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-danger {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
-        }
-
-        /* 統計卡片 */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .stat-card {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .stat-card h3 {
-            color: #666;
-            font-size: 1em;
-            margin-bottom: 10px;
-        }
-
-        .stat-card .value {
-            font-size: 2.5em;
-            font-weight: bold;
-            color: #667eea;
-        }
-
-        /* 圖表容器 */
-        .charts {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
-            gap: 30px;
-            margin-bottom: 30px;
-        }
-
-        .chart-container {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            backdrop-filter: blur(10px);
-        }
-
-        .chart-container h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-
-        /* 鼓勵訊息 */
-        .motivation-container {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            text-align: center;
-            backdrop-filter: blur(10px);
-            margin-bottom: 30px;
-        }
-
-        .motivation-text {
-            font-size: 2em;
-            font-weight: bold;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .title-text {
+            font-family: 'Black Ops One', cursive;
+            font-size: 4rem;
+            background: linear-gradient(to right, #00f2ff, #eb00ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
-            animation: gradientShift 3s ease infinite;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% {
-                background-position: 0% 50%;
-            }
-            50% {
-                background-position: 100% 50%;
-            }
-        }
-
-        .status {
-            padding: 10px 20px;
-            border-radius: 8px;
             margin-bottom: 20px;
+            text-shadow: 0 0 30px rgba(0, 242, 255, 0.5);
+            letter-spacing: 5px;
+        }
+
+        .setup-container {
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .player-setup {
+            background: rgba(20, 20, 40, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid rgba(255,255,255,0.1);
+            width: 380px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .player-setup:hover { transform: translateY(-5px); }
+        .player-setup.p1:hover { border-color: #00ffff; box-shadow: 0 0 20px rgba(0, 255, 255, 0.3); }
+        .player-setup.p2:hover { border-color: #ff0055; box-shadow: 0 0 20px rgba(255, 0, 85, 0.3); }
+
+        .player-setup h2 { 
+            font-family: 'Russo One', sans-serif;
+            margin-bottom: 20px; text-align: center; letter-spacing: 1px; 
+        }
+        .player-setup.p1 h2 { color: #00ffff; text-shadow: 0 0 10px rgba(0,255,255,0.5); }
+        .player-setup.p2 h2 { color: #ff0055; text-shadow: 0 0 10px rgba(255,0,85,0.5); }
+
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 0.9rem; margin-bottom: 5px; color: #aaa; }
+        .input-group input {
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #444;
+            background: rgba(0,0,0,0.6); color: white; font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+        .player-setup.p1 input:focus { border-color: #00ffff; outline: none; }
+        .player-setup.p2 input:focus { border-color: #ff0055; outline: none; }
+
+        /* 頭像選擇 */
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(0,0,0,0.3);
+            border-radius: 10px;
+        }
+        .avatar-option {
+            font-size: 2.2rem;
+            cursor: pointer;
             text-align: center;
-            font-weight: 600;
+            padding: 5px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            filter: grayscale(0.7) opacity(0.7);
+            user-select: none;
+        }
+        .avatar-option:hover { filter: grayscale(0) opacity(1); transform: scale(1.2); }
+        .avatar-option.selected {
+            background: rgba(255,255,255,0.2);
+            filter: grayscale(0) opacity(1);
+            box-shadow: 0 0 15px white;
+            transform: scale(1.1);
         }
 
-        .status.success {
-            background: #d4edda;
-            color: #155724;
+        .start-btn {
+            margin-top: 30px;
+            padding: 15px 60px;
+            font-size: 2.2rem;
+            font-family: 'Black Ops One', cursive;
+            background: linear-gradient(90deg, #00f2ff, #eb00ff);
+            border: none;
+            color: #fff;
+            border-radius: 50px;
+            cursor: pointer;
+            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(235, 0, 255, 0.5);
+            transition: transform 0.2s;
+            animation: pulse 2s infinite;
+        }
+        .start-btn:active { transform: scale(0.95); }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(235, 0, 255, 0.7); } 70% { box-shadow: 0 0 0 25px rgba(235, 0, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(235, 0, 255, 0); } }
+
+        /* 遊戲中 HUD */
+        .hud-top {
+            display: flex;
+            justify-content: space-between;
+            padding: 30px;
+            width: 100%;
+        }
+        .player-card {
+            background: rgba(0, 0, 0, 0.8);
+            border: 3px solid #00ffff;
+            border-radius: 15px;
+            padding: 20px;
+            width: 350px;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            transform: skewX(-10deg); /* 賽車風格傾斜 */
+        }
+        .player-card > * { transform: skewX(10deg); /* 內容轉正 */ }
+        
+        .player-card.p2 { border-color: #ff0055; text-align: right; }
+        .player-card.p2 .info-row { flex-direction: row-reverse; }
+        
+        .info-row { display: flex; align-items: center; gap: 20px; margin-bottom: 15px; }
+        .avatar-display { font-size: 3.5rem; filter: drop-shadow(0 0 10px rgba(255,255,255,0.5)); }
+        .name-display { 
+            font-family: 'Russo One', sans-serif;
+            font-size: 1.8rem; 
+            color: #fff; 
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .speed-meter { font-family: 'Black Ops One'; font-size: 3rem; color: #ffff00; text-shadow: 0 0 10px rgba(255, 255, 0, 0.5); }
+        .unit { font-size: 1.2rem; color: #aaa; font-family: 'Russo One', sans-serif; }
+
+        .progress-track {
+            width: 100%; height: 25px; background: #222; border-radius: 12px; overflow: hidden;
+            position: relative; border: 1px solid #555;
+            box-shadow: inset 0 0 10px rgba(0,0,0,1);
+        }
+        .progress-fill {
+            height: 100%; width: 0%; transition: width 0.5s ease-out;
+            background: linear-gradient(90deg, #00ffff, #0088ff);
+            position: relative;
+            box-shadow: 0 0 15px #00ffff;
+        }
+        .player-card.p2 .progress-fill { background: linear-gradient(90deg, #ff0055, #ff8800); box-shadow: 0 0 15px #ff0055; }
+        
+        .distance-text { 
+            position: absolute; width: 100%; text-align: center; top: 2px; 
+            line-height: 20px; font-size: 1rem; font-weight: bold; 
+            text-shadow: 1px 1px 2px black, 0 0 5px black; 
+            color: white; font-family: 'Russo One', sans-serif; z-index: 2;
         }
 
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .hidden {
+        /* 獲勝畫面 - z-index 200 (小於煙火) */
+        #winner-overlay {
             display: none;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
         }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-
-            .charts {
-                grid-template-columns: 1fr;
-            }
-
-            .motivation-text {
-                font-size: 1.5em;
-            }
-
-            .button-group {
-                flex-direction: column;
-            }
-
-            button {
-                width: 100%;
-            }
+        .winner-name {
+            font-size: 7rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 50px #ffd700, 0 0 100px orange;
+            animation: bounceIn 1s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
+            font-family: 'Black Ops One', cursive;
+            margin-bottom: 20px;
+        }
+        .win-subtitle { font-size: 2.5rem; margin-bottom: 40px; color: white; font-family: 'Russo One'; letter-spacing: 5px; }
+        
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale3d(.3, .3, .3); }
+            20% { transform: scale3d(1.1, 1.1, 1.1); }
+            40% { transform: scale3d(.9, .9, .9); }
+            60% { opacity: 1; transform: scale3d(1.03, 1.03, 1.03); }
+            80% { transform: scale3d(.97, .97, .97); }
+            100% { opacity: 1; transform: scale3d(1, 1, 1); }
         }
     </style>
 </head>
 <body>
-    <!-- 星空背景 -->
-    <canvas id="starfield"></canvas>
 
-    <!-- 登入介面 -->
-    <div id="loginContainer" class="login-container">
-        <div class="login-box">
-            <h1>🌟 歡迎使用監控系統</h1>
-            <div class="input-group">
-                <label for="loginName">使用者姓名 *</label>
-                <input type="text" id="loginName" placeholder="請輸入您的姓名" required>
+    <!-- 遊戲渲染層 -->
+    <canvas id="game-canvas"></canvas>
+    <!-- 煙火層 (最高) -->
+    <canvas id="fireworks"></canvas>
+
+    <!-- UI 介面 -->
+    <div id="login-screen">
+        <div class="title-text">極速溫控賽車</div>
+        
+        <div class="setup-container">
+            <!-- 玩家 1 設定 -->
+            <div class="player-setup p1">
+                <h2>🏁 玩家 1 (藍隊)</h2>
+                <div class="input-group">
+                    <label>姓名</label>
+                    <input type="text" id="p1-name" placeholder="輸入名字" value="閃電俠">
+                </div>
+                <div class="input-group">
+                    <label>Google Sheet API URL (GAS)</label>
+                    <input type="text" id="p1-url" placeholder="連結網址">
+                </div>
+                <label style="color:#ccc; font-size:0.9rem;">選擇車手</label>
+                <div class="avatar-grid" id="p1-avatars">
+                    <!-- 5男 (多樣化) -->
+                    <div class="avatar-option" onclick="selectAvatar(1, '👮‍♂️')">👮‍♂️</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '👨‍🚀')">👨‍🚀</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🧛')">🧛</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🧙‍♂️')">🧙‍♂️</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🤖')">🤖</div>
+                    <!-- 5女 (多樣化) -->
+                    <div class="avatar-option" onclick="selectAvatar(1, '👩‍⚕️')">👩‍⚕️</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🕵️‍♀️')">🕵️‍♀️</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🦸‍♀️')">🦸‍♀️</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🧝‍♀️')">🧝‍♀️</div>
+                    <div class="avatar-option" onclick="selectAvatar(1, '🧟‍♀️')">🧟‍♀️</div>
+                </div>
             </div>
-            <div class="input-group">
-                <label for="loginEmail">電子郵件 *</label>
-                <input type="email" id="loginEmail" placeholder="請輸入您的email" required>
+
+            <!-- 玩家 2 設定 -->
+            <div class="player-setup p2">
+                <h2>🏁 玩家 2 (紅隊)</h2>
+                <div class="input-group">
+                    <label>姓名</label>
+                    <input type="text" id="p2-name" placeholder="輸入名字" value="火焰女">
+                </div>
+                <div class="input-group">
+                    <label>Google Sheet API URL (GAS)</label>
+                    <input type="text" id="p2-url" placeholder="連結網址">
+                </div>
+                <label style="color:#ccc; font-size:0.9rem;">選擇車手</label>
+                <div class="avatar-grid" id="p2-avatars">
+                    <!-- 5男 (多樣化) -->
+                    <div class="avatar-option" onclick="selectAvatar(2, '🤠')">🤠</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '🤡')">🤡</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '👹')">👹</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '👽')">👽</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '🤴')">🤴</div>
+                    <!-- 5女 (多樣化) -->
+                    <div class="avatar-option" onclick="selectAvatar(2, '👩‍🎤')">👩‍🎤</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '👸')">👸</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '🧙‍♀️')">🧙‍♀️</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '🧚‍♀️')">🧚‍♀️</div>
+                    <div class="avatar-option" onclick="selectAvatar(2, '🧞‍♀️')">🧞‍♀️</div>
+                </div>
             </div>
-            <div class="input-group">
-                <label for="loginDevice">設備名稱 *</label>
-                <input type="text" id="loginDevice" placeholder="請輸入設備名稱" required>
+        </div>
+
+        <button class="start-btn" onclick="startGame()">啟動引擎 START</button>
+        <div style="margin-top:15px; color: #888; font-size: 0.8rem;">*請確保 GAS 網址權限已設為公開 | 支援模擬模式</div>
+    </div>
+
+    <!-- 遊戲中介面 -->
+    <div id="ui-layer" style="display:none;">
+        <div class="hud-top">
+            <!-- P1 HUD -->
+            <div class="player-card p1">
+                <div class="info-row">
+                    <div class="avatar-display" id="hud-p1-avatar">😐</div>
+                    <div>
+                        <div class="name-display" id="hud-p1-name">Player 1</div>
+                        <div class="speed-meter"><span id="hud-p1-speed">0</span> <span class="unit">Temp</span></div>
+                    </div>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="hud-p1-bar"></div>
+                    <div class="distance-text" id="hud-p1-dist">0 / 200 Pts</div>
+                </div>
             </div>
-            <div class="input-group">
-                <label for="loginGasUrl">Google Apps Script URL *</label>
-                <input type="text" id="loginGasUrl" placeholder="請貼上您的GAS URL" required>
+
+            <!-- P2 HUD -->
+            <div class="player-card p2">
+                <div class="info-row">
+                    <div class="avatar-display" id="hud-p2-avatar">😐</div>
+                    <div>
+                        <div class="name-display" id="hud-p2-name">Player 2</div>
+                        <div class="speed-meter"><span id="hud-p2-speed">0</span> <span class="unit">Temp</span></div>
+                    </div>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="hud-p2-bar"></div>
+                    <div class="distance-text" id="hud-p2-dist">0 / 200 Pts</div>
+                </div>
             </div>
-            <button class="login-btn" onclick="handleLogin()">🚀 開始監控</button>
         </div>
     </div>
 
-    <!-- 主要內容 -->
-    <div id="mainContent" class="container hidden">
-        <div class="header">
-            <h1>🌡️ D1 Mini 溫度監控系統</h1>
-            <div class="user-info-display">
-                <p>👤 使用者：<strong id="displayName"></strong> | 🔧 設備：<strong id="displayDevice"></strong></p>
-            </div>
-        </div>
-
-        <div class="theme-selector">
-            <h3>🎨 選擇主題顏色</h3>
-            <div class="theme-buttons">
-                <button class="theme-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="changeTheme('purple')">紫色夢幻</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="changeTheme('pink')">粉紅浪漫</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="changeTheme('blue')">藍色海洋</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);" onclick="changeTheme('green')">綠色森林</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);" onclick="changeTheme('sunset')">日落餘暉</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);" onclick="changeTheme('ocean')">深海藍調</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);" onclick="changeTheme('fire')">火焰橙紅</button>
-                <button class="theme-btn" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);" onclick="changeTheme('pastel')">粉彩清新</button>
-            </div>
-        </div>
-
-        <div class="controls">
-            <div class="button-group">
-                <button class="btn-primary" onclick="loadData()">🔄 手動重新載入</button>
-                <button class="btn-danger" onclick="confirmReset()">🗑️ 清除所有數據</button>
-                <button class="btn-primary" onclick="logout()">🚪 登出</button>
-            </div>
-            <div id="statusMessage" class="status hidden"></div>
-        </div>
-
-        <div class="stats">
-            <div class="stat-card">
-                <h3>資料筆數</h3>
-                <div class="value" id="dataCount">0</div>
-            </div>
-            <div class="stat-card">
-                <h3>最新 Temp 值</h3>
-                <div class="value" id="latestTemp">--</div>
-            </div>
-            <div class="stat-card">
-                <h3>平均 Temp 值</h3>
-                <div class="value" id="avgTemp">--</div>
-            </div>
-            <div class="stat-card">
-                <h3>累積 Temp 值</h3>
-                <div class="value" id="totalTemp">--</div>
-            </div>
-        </div>
-
-        <div class="motivation-container">
-            <div class="motivation-text" id="motivationText">等待數據中...</div>
-        </div>
-
-        <div class="charts">
-            <div class="chart-container">
-                <h2>📊 Temp 值變化趨勢</h2>
-                <canvas id="tempChart"></canvas>
-            </div>
-            <div class="chart-container">
-                <h2>📈 累積 Temp 值趨勢</h2>
-                <canvas id="cumulativeChart"></canvas>
-            </div>
-        </div>
+    <!-- 獲勝畫面 -->
+    <div id="winner-overlay">
+        <div class="winner-name" id="winner-text">PLAYER WINS!</div>
+        <div class="win-subtitle">🏆 王者誕生 🏆</div>
+        <button class="start-btn" style="font-size: 1.5rem; padding: 10px 30px;" onclick="location.reload()">重新比賽</button>
     </div>
 
     <script>
-        let tempChart, cumulativeChart;
-        let userData = null;
-        let updateInterval = null;
-        let currentTheme = 'purple';
-
-        // 主題配色
-        const themes = {
-            purple: {
-                gradient: ['#667eea', '#764ba2'],
-                stars: '#ffffff'
-            },
-            pink: {
-                gradient: ['#f093fb', '#f5576c'],
-                stars: '#ffddee'
-            },
-            blue: {
-                gradient: ['#4facfe', '#00f2fe'],
-                stars: '#e0f7ff'
-            },
-            green: {
-                gradient: ['#43e97b', '#38f9d7'],
-                stars: '#d4ffea'
-            },
-            sunset: {
-                gradient: ['#fa709a', '#fee140'],
-                stars: '#fff5e0'
-            },
-            ocean: {
-                gradient: ['#30cfd0', '#330867'],
-                stars: '#a0e0ff'
-            },
-            fire: {
-                gradient: ['#ff9a56', '#ff6a88'],
-                stars: '#ffe0cc'
-            },
-            pastel: {
-                gradient: ['#a8edea', '#fed6e3'],
-                stars: '#ffffff'
-            }
-        };
-
-        // 鼓勵訊息（根據 temp 值 0-100 分成 20 種）
-        const motivationMessages = [
-            "🌟 開始的第一步！繼續加油！",
-            "💫 表現不錯，保持下去！",
-            "✨ 穩定進步中，很好！",
-            "🌠 你正在進步，繼續努力！",
-            "⭐ 做得很好，再接再厲！",
-            "🌈 進展順利，太棒了！",
-            "🎯 準確度提升中，讚！",
-            "🚀 效率越來越高了！",
-            "💪 表現優異，持續加油！",
-            "🔥 熱力全開，太厲害了！",
-            "🎉 達到中等水平，真棒！",
-            "🌺 越來越穩定了！",
-            "💎 品質提升中，優秀！",
-            "🏆 表現卓越，令人驚艷！",
-            "👏 非常出色的表現！",
-            "🎊 超越預期，太強了！",
-            "🌟 接近完美的表現！",
-            "💯 幾乎完美了，超讚！",
-            "🏅 卓越表現，金牌水準！",
-            "👑 完美表現，你是冠軍！"
+        // === 遊戲全域變數 ===
+        let gameState = 'setup'; 
+        let scene, camera, renderer;
+        let road, gridHelper;
+        let environmentObjects = []; // 存放路邊景物
+        const players = [
+            { id: 1, name: '', url: '', avatar: '', speed: 0, distance: 0, mesh: null, color: 0x00ffff, wheelRot: 0 },
+            { id: 2, name: '', url: '', avatar: '', speed: 0, distance: 0, mesh: null, color: 0xff0055, wheelRot: 0 }
         ];
+        const WINNING_DISTANCE = 200;
+        let fetchInterval;
+        
+        // 音效環境
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let engineOscillators = [null, null];
+        let bgmInterval = null;
 
-        // 星空背景
-        const canvas = document.getElementById('starfield');
-        const ctx = canvas.getContext('2d');
-        let stars = [];
-
-        function initStarfield() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+        // === 1. 設定與初始化 ===
+        function selectAvatar(pid, emoji) {
+            const pIndex = pid - 1;
+            players[pIndex].avatar = emoji;
             
-            stars = [];
-            for (let i = 0; i < 200; i++) {
-                stars.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    radius: Math.random() * 2,
-                    speed: Math.random() * 0.5 + 0.1
+            // UI 更新
+            const container = document.getElementById(`p${pid}-avatars`);
+            const opts = container.getElementsByClassName('avatar-option');
+            for(let opt of opts) {
+                if(opt.textContent === emoji) opt.classList.add('selected');
+                else opt.classList.remove('selected');
+            }
+        }
+
+        // 預設選擇
+        selectAvatar(1, '👮‍♂️');
+        selectAvatar(2, '🤠');
+
+        function startGame() {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+
+            players[0].name = document.getElementById('p1-name').value || 'Player 1';
+            players[0].url = document.getElementById('p1-url').value;
+            players[1].name = document.getElementById('p2-name').value || 'Player 2';
+            players[1].url = document.getElementById('p2-url').value;
+
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('ui-layer').style.display = 'block';
+
+            updateHUDStatic();
+            init3DScene();
+            
+            gameState = 'playing';
+            startDataFetching();
+            startEngineSound();
+            startRetroBGM();
+            animate();
+        }
+
+        function updateHUDStatic() {
+            document.getElementById('hud-p1-name').innerText = players[0].name;
+            document.getElementById('hud-p1-avatar').innerText = players[0].avatar;
+            document.getElementById('hud-p2-name').innerText = players[1].name;
+            document.getElementById('hud-p2-avatar').innerText = players[1].avatar;
+        }
+
+        // === 2. Three.js 3D 場景 (酷炫升級版) ===
+        function init3DScene() {
+            const canvas = document.getElementById('game-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding; // 更好的顏色
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0a1a);
+            scene.fog = new THREE.FogExp2(0x0a0a1a, 0.02); // 霧氣稍微濃一點
+
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 6, 18);
+            camera.lookAt(0, 0, -15);
+
+            // 燈光 - 增加戲劇性
+            const ambientLight = new THREE.AmbientLight(0x404080, 0.8);
+            scene.add(ambientLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(10, 20, 10);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+            
+            // 聚光燈照車
+            const spotLight = new THREE.SpotLight(0xffffff, 1);
+            spotLight.position.set(0, 15, 0);
+            spotLight.angle = Math.PI / 4;
+            scene.add(spotLight);
+
+            // 地面 (道路)
+            const roadGeo = new THREE.PlaneGeometry(30, 2000);
+            const roadMat = new THREE.MeshStandardMaterial({ 
+                color: 0x1a1a1a, 
+                roughness: 0.8 
+            });
+            road = new THREE.Mesh(roadGeo, roadMat);
+            road.rotation.x = -Math.PI / 2;
+            road.position.z = -900;
+            road.receiveShadow = true;
+            scene.add(road);
+
+            // 地面網格 (霓虹賽博風)
+            gridHelper = new THREE.GridHelper(60, 600, 0x00ffff, 0x220044);
+            gridHelper.position.z = -100;
+            gridHelper.scale.z = 5;
+            scene.add(gridHelper);
+
+            // 建立酷炫賽車
+            players[0].mesh = createSportCar(players[0].color, -5);
+            players[1].mesh = createSportCar(players[1].color, 5);
+            scene.add(players[0].mesh);
+            scene.add(players[1].mesh);
+            
+            // 生成環境景物
+            initEnvironment();
+        }
+
+        function createSportCar(colorHex, xPos) {
+            const carGroup = new THREE.Group();
+
+            // 1. 底盤 (低趴寬體)
+            const chassisGeo = new THREE.BoxGeometry(3, 0.5, 6);
+            const paintMat = new THREE.MeshPhysicalMaterial({
+                color: colorHex,
+                metalness: 0.6,
+                roughness: 0.2,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1
+            });
+            const chassis = new THREE.Mesh(chassisGeo, paintMat);
+            chassis.position.y = 0.5;
+            chassis.castShadow = true;
+            carGroup.add(chassis);
+
+            // 2. 駕駛艙 (流線型)
+            const cabinGeo = new THREE.BoxGeometry(1.8, 0.6, 2.5);
+            const cabinMat = new THREE.MeshPhysicalMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
+            const cabin = new THREE.Mesh(cabinGeo, cabinMat);
+            cabin.position.set(0, 1.0, -0.5);
+            carGroup.add(cabin);
+
+            // 3. 引擎蓋進氣口
+            const intakeGeo = new THREE.BoxGeometry(1.5, 0.2, 1.5);
+            const intake = new THREE.Mesh(intakeGeo, paintMat);
+            intake.position.set(0, 0.8, 1.5);
+            carGroup.add(intake);
+
+            // 4. 尾翼 (大尾翼)
+            const spoilerSupportGeo = new THREE.BoxGeometry(2.5, 0.1, 0.5);
+            const spoilerWingGeo = new THREE.BoxGeometry(3.5, 0.1, 1);
+            const spoilerSupport = new THREE.Mesh(spoilerSupportGeo, paintMat);
+            spoilerSupport.position.set(0, 1.0, -2.8);
+            const spoilerWing = new THREE.Mesh(spoilerWingGeo, paintMat);
+            spoilerWing.position.set(0, 1.3, -2.8);
+            carGroup.add(spoilerSupport);
+            carGroup.add(spoilerWing);
+
+            // 5. 輪胎 (4個)
+            const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.6, 24);
+            const wheelMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 0.9 });
+            
+            const wheelPositions = [
+                {x: -1.6, z: 1.8}, {x: 1.6, z: 1.8}, // 前輪
+                {x: -1.6, z: -2.0}, {x: 1.6, z: -2.0} // 後輪
+            ];
+            
+            wheelPositions.forEach(pos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                wheel.rotation.z = Math.PI / 2;
+                wheel.position.set(pos.x, 0.6, pos.z);
+                wheel.castShadow = true;
+                // 加一個輪框
+                const rimGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.62, 8);
+                const rimMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
+                const rim = new THREE.Mesh(rimGeo, rimMat);
+                rim.rotation.z = Math.PI / 2;
+                rim.position.set(pos.x, 0.6, pos.z);
+                
+                carGroup.add(wheel);
+                carGroup.add(rim);
+            });
+
+            // 6. 尾焰 (發光球)
+            const flameGeo = new THREE.SphereGeometry(0.4);
+            const flameMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            const flame1 = new THREE.Mesh(flameGeo, flameMat);
+            flame1.position.set(-0.8, 0.6, -3.1);
+            flame1.name = "flame1";
+            const flame2 = new THREE.Mesh(flameGeo, flameMat);
+            flame2.position.set(0.8, 0.6, -3.1);
+            flame2.name = "flame2";
+            carGroup.add(flame1);
+            carGroup.add(flame2);
+
+            carGroup.position.set(xPos, 0, 0);
+            return carGroup;
+        }
+
+        // 環境生成 (石頭、樹木、建築)
+        function initEnvironment() {
+            // 簡單的幾何體
+            const treeGeo = new THREE.ConeGeometry(2, 8, 8);
+            const treeMat = new THREE.MeshStandardMaterial({ color: 0x00aa44, flatShading: true });
+            
+            const rockGeo = new THREE.DodecahedronGeometry(1.5);
+            const rockMat = new THREE.MeshStandardMaterial({ color: 0x555555, flatShading: true });
+            
+            const buildGeo = new THREE.BoxGeometry(4, 15, 4);
+            const buildMat = new THREE.MeshStandardMaterial({ color: 0x222244 });
+
+            // 生成 50 個物件
+            for(let i=0; i<50; i++) {
+                let mesh;
+                const type = Math.random();
+                if(type < 0.4) { // 樹
+                    mesh = new THREE.Mesh(treeGeo, treeMat);
+                    mesh.position.y = 4;
+                } else if (type < 0.7) { // 石頭
+                    mesh = new THREE.Mesh(rockGeo, rockMat);
+                    mesh.position.y = 1;
+                } else { // 建築
+                    mesh = new THREE.Mesh(buildGeo, buildMat);
+                    mesh.position.y = 7.5;
+                    // 建築加點窗戶光
+                    const winGeo = new THREE.BoxGeometry(4.1, 1, 1);
+                    const winMat = new THREE.MeshBasicMaterial({color: 0xffff00});
+                    const win = new THREE.Mesh(winGeo, winMat);
+                    win.position.y = 4;
+                    mesh.add(win);
+                }
+
+                // 隨機位置 (遠處)
+                // X: 道路兩旁 (-50 ~ -15) 或 (15 ~ 50)
+                const side = Math.random() > 0.5 ? 1 : -1;
+                const x = side * (15 + Math.random() * 35);
+                // Z: 隨機分布在前方 -200 到 -10 之間
+                const z = - Math.random() * 400;
+
+                mesh.position.x = x;
+                mesh.position.z = z;
+                scene.add(mesh);
+                environmentObjects.push(mesh);
+            }
+        }
+
+        // === 3. 數據與邏輯控制 ===
+        function startDataFetching() {
+            fetchPlayerData();
+            fetchInterval = setInterval(fetchPlayerData, 1500);
+        }
+
+        async function fetchPlayerData() {
+            if(gameState === 'finished') return;
+
+            players.forEach(async (p, index) => {
+                if(gameState === 'finished') return;
+
+                let newSpeed = 0;
+                const targetUrl = p.url ? p.url.trim() : '';
+
+                if (!targetUrl) {
+                    // 模擬數據
+                    newSpeed = Math.floor(Math.random() * 25) + 20;
+                } else {
+                    try {
+                        const response = await fetch(targetUrl);
+                        if (!response.ok) throw new Error("Network response was not ok");
+                        const result = await response.json();
+                        if (result.status === 'success' && result.data && result.data.length > 0) {
+                            const lastData = result.data[result.data.length - 1];
+                            newSpeed = parseFloat(lastData['temp值']) || 0;
+                        }
+                    } catch (e) {
+                        newSpeed = Math.floor(Math.random() * 25) + 20;
+                    }
+                }
+
+                if(gameState === 'finished') return;
+
+                p.speed = newSpeed; 
+                p.distance += newSpeed; 
+
+                updateHUD(index);
+                checkWin(index);
+            });
+        }
+
+        function updateHUD(pIndex) {
+            const p = players[pIndex];
+            const id = pIndex + 1;
+            
+            document.getElementById(`hud-p${id}-speed`).innerText = Math.floor(p.speed);
+            const percent = Math.min((p.distance / WINNING_DISTANCE) * 100, 100);
+            document.getElementById(`hud-p${id}-bar`).style.width = `${percent}%`;
+            document.getElementById(`hud-p${id}-dist`).innerText = `${p.distance.toFixed(1)} / ${WINNING_DISTANCE} Pts`;
+
+            // 引擎聲調變
+            if(engineOscillators[pIndex]) {
+                const baseFreq = 60 + (p.speed * 1.5); 
+                engineOscillators[pIndex].frequency.setTargetAtTime(baseFreq, audioCtx.currentTime, 0.1);
+            }
+        }
+
+        function checkWin(pIndex) {
+            if (gameState === 'finished') return;
+            if (players[pIndex].distance >= WINNING_DISTANCE) {
+                endGame(pIndex);
+            }
+        }
+
+        function endGame(winnerIndex) {
+            gameState = 'finished';
+            if (fetchInterval) clearInterval(fetchInterval);
+            stopEngineSound();
+            stopBackgroundMusic(); 
+            playVictoryFanfare(); 
+
+            const overlay = document.getElementById('winner-overlay');
+            const winnerText = document.getElementById('winner-text');
+            overlay.style.display = 'flex';
+            winnerText.innerText = `${players[winnerIndex].name} 獲勝!`;
+            winnerText.style.color = players[winnerIndex].color === 0x00ffff ? '#00ffff' : '#ff0055';
+
+            startFireworks();
+        }
+
+        // === 4. 渲染循環 ===
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (gameState === 'playing' || gameState === 'finished') {
+                const maxSpeed = Math.max(players[0].speed, players[1].speed);
+                const displaySpeed = maxSpeed > 0 ? maxSpeed : 0;
+                const moveSpeed = displaySpeed * 0.2; // 環境移動速度
+
+                // 1. 地板移動
+                gridHelper.position.z += moveSpeed;
+                if(gridHelper.position.z > 0) gridHelper.position.z = -100;
+
+                // 2. 環境景物移動 (循環)
+                environmentObjects.forEach(obj => {
+                    obj.position.z += moveSpeed;
+                    if(obj.position.z > 20) { // 超過相機位置
+                        obj.position.z = -400; // 重置到遠處
+                        // 隨機換邊
+                        const side = Math.random() > 0.5 ? 1 : -1;
+                        obj.position.x = side * (15 + Math.random() * 35);
+                    }
+                });
+
+                // 3. 車子動畫
+                players.forEach(p => {
+                    if(p.mesh) {
+                        // 振動
+                        p.mesh.position.y = (Math.random() * 0.05) * (p.speed/50);
+                        
+                        // 尾焰
+                        const f1 = p.mesh.getObjectByName("flame1");
+                        const f2 = p.mesh.getObjectByName("flame2");
+                        if(f1 && f2) {
+                            const scale = 1 + Math.random() * (p.speed / 15);
+                            f1.scale.set(scale, scale, scale);
+                            f2.scale.set(scale, scale, scale);
+                            
+                            // 顏色變化
+                            const hue = (Math.random() * 0.1) + 0.05; // 橙黃色
+                            f1.material.color.setHSL(hue, 1, 0.5);
+                        }
+
+                        // 前後移動 (反映分數差距)
+                        const opponentIndex = p.id === 1 ? 1 : 0;
+                        const diff = p.distance - players[opponentIndex].distance;
+                        let targetZ = Math.max(-6, Math.min(8, diff * 0.05));
+                        p.mesh.position.z += (targetZ - p.mesh.position.z) * 0.05;
+                        
+                        // 轉彎傾斜效果 (假裝在修正方向)
+                        p.mesh.rotation.z = Math.sin(Date.now() * 0.005) * 0.05;
+                    }
                 });
             }
+
+            renderer.render(scene, camera);
         }
 
-        function drawStarfield() {
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            const colors = themes[currentTheme].gradient;
-            gradient.addColorStop(0, colors[0]);
-            gradient.addColorStop(1, colors[1]);
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // === 5. 音效系統 ===
+        function startEngineSound() {
+            players.forEach((p, idx) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                // 使用低頻鋸齒波模擬引擎
+                osc.type = 'sawtooth';
+                osc.frequency.value = 60;
+                // LFO 模擬引擎抖動
+                const lfo = audioCtx.createOscillator();
+                lfo.frequency.value = 10;
+                const lfoGain = audioCtx.createGain();
+                lfoGain.gain.value = 10;
+                lfo.connect(lfoGain);
+                lfoGain.connect(osc.frequency);
+                lfo.start();
 
-            ctx.fillStyle = themes[currentTheme].stars;
-            stars.forEach(star => {
-                ctx.beginPath();
-                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
-                ctx.fill();
-
-                star.y += star.speed;
-                if (star.y > canvas.height) {
-                    star.y = 0;
-                    star.x = Math.random() * canvas.width;
-                }
+                gain.gain.value = 0.03;
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                engineOscillators[idx] = osc;
             });
-
-            requestAnimationFrame(drawStarfield);
         }
 
-        window.addEventListener('resize', initStarfield);
-        initStarfield();
-        drawStarfield();
+        function stopEngineSound() {
+            engineOscillators.forEach(osc => { if(osc) try { osc.stop(); } catch(e){} });
+        }
 
-        // 登入處理
-        function handleLogin() {
-            const name = document.getElementById('loginName').value.trim();
-            const email = document.getElementById('loginEmail').value.trim();
-            const device = document.getElementById('loginDevice').value.trim();
-            const gasUrl = document.getElementById('loginGasUrl').value.trim();
+        // BGM
+        let bgmNoteTime = 0;
+        let bgmNoteIndex = 0;
+        const tempo = 140; 
+        const scheduleAheadTime = 0.1;
 
-            if (!name || !email || !device || !gasUrl) {
-                alert('請填寫所有必填欄位！');
-                return;
+        function startRetroBGM() {
+            bgmNoteTime = audioCtx.currentTime;
+            bgmNoteIndex = 0;
+            bgmInterval = setInterval(scheduler, 25);
+        }
+
+        function stopBackgroundMusic() {
+            if(bgmInterval) clearInterval(bgmInterval);
+        }
+
+        function scheduler() {
+            while (bgmNoteTime < audioCtx.currentTime + scheduleAheadTime) {
+                playBGMNote(bgmNoteTime, bgmNoteIndex);
+                advanceNote();
             }
+        }
 
-            userData = { name, email, device, gasUrl };
-            localStorage.setItem('userData', JSON.stringify(userData));
+        function advanceNote() {
+            const secondsPerBeat = 60.0 / tempo;
+            bgmNoteTime += 0.25 * secondsPerBeat;
+            bgmNoteIndex++;
+        }
 
-            document.getElementById('loginContainer').classList.add('hidden');
-            document.getElementById('mainContent').classList.remove('hidden');
+        function playBGMNote(time, index) {
+            const beat = index % 16;
+            // Bass (Square)
+            const bassOsc = audioCtx.createOscillator();
+            const bassGain = audioCtx.createGain();
+            bassOsc.type = 'square';
+            bassOsc.connect(bassGain);
+            bassGain.connect(audioCtx.destination);
+
+            // F-Zero Style Bassline (roughly)
+            let freq = 0;
+            // E2 baseline
+            if([0, 2, 4, 6].includes(beat)) freq = 82.41; // E2
+            if([8, 10].includes(beat)) freq = 98.00; // G2
+            if([12, 14].includes(beat)) freq = 110.00; // A2
+
+            if(freq > 0) {
+                bassOsc.frequency.value = freq;
+                bassGain.gain.setValueAtTime(0.15, time);
+                bassGain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
+                bassOsc.start(time);
+                bassOsc.stop(time + 0.15);
+            }
             
-            document.getElementById('displayName').textContent = name;
-            document.getElementById('displayDevice').textContent = device;
-
-            initCharts();
-            loadData();
-            startAutoUpdate();
+            // Hi-hat
+            if(beat % 2 !== 0) playNoise(time);
         }
 
-        // 登出
-        function logout() {
-            if (confirm('確定要登出嗎？')) {
-                localStorage.removeItem('userData');
-                stopAutoUpdate();
-                document.getElementById('mainContent').classList.add('hidden');
-                document.getElementById('loginContainer').classList.remove('hidden');
-                
-                document.getElementById('loginName').value = '';
-                document.getElementById('loginEmail').value = '';
-                document.getElementById('loginDevice').value = '';
-                document.getElementById('loginGasUrl').value = '';
-            }
+        function playNoise(time) {
+            const bufferSize = audioCtx.sampleRate * 0.05;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = audioCtx.createGain();
+            gain.gain.value = 0.08;
+            noise.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start(time);
         }
 
-        // 檢查登入狀態
-        function checkLogin() {
-            const saved = localStorage.getItem('userData');
-            if (saved) {
-                userData = JSON.parse(saved);
-                document.getElementById('loginName').value = userData.name;
-                document.getElementById('loginEmail').value = userData.email;
-                document.getElementById('loginDevice').value = userData.device;
-                document.getElementById('loginGasUrl').value = userData.gasUrl;
-                
-                document.getElementById('loginContainer').classList.add('hidden');
-                document.getElementById('mainContent').classList.remove('hidden');
-                
-                document.getElementById('displayName').textContent = userData.name;
-                document.getElementById('displayDevice').textContent = userData.device;
-
-                initCharts();
-                loadData();
-                startAutoUpdate();
-            }
-        }
-
-        // 更改主題
-        function changeTheme(theme) {
-            currentTheme = theme;
-            updateMotivationGradient();
-        }
-
-        // 更新鼓勵訊息漸層
-        function updateMotivationGradient() {
-            const colors = themes[currentTheme].gradient;
-            const motivationText = document.getElementById('motivationText');
-            motivationText.style.background = `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`;
-            motivationText.style.webkitBackgroundClip = 'text';
-            motivationText.style.webkitTextFillColor = 'transparent';
-            motivationText.style.backgroundClip = 'text';
-        }
-
-        // 初始化圖表
-        function initCharts() {
-            const ctx1 = document.getElementById('tempChart').getContext('2d');
-            const ctx2 = document.getElementById('cumulativeChart').getContext('2d');
-
-            const colors = themes[currentTheme].gradient;
-
-            tempChart = new Chart(ctx1, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Temp 值',
-                        data: [],
-                        borderColor: colors[0],
-                        backgroundColor: colors[0] + '20',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: true, position: 'top' }
-                    },
-                    scales: {
-                        y: { beginAtZero: true },
-                        x: { display: true }
-                    }
-                }
-            });
-
-            cumulativeChart = new Chart(ctx2, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: '累積 Temp 值',
-                        data: [],
-                        borderColor: colors[1],
-                        backgroundColor: colors[1] + '20',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.4,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    plugins: {
-                        legend: { display: true, position: 'top' }
-                    },
-                    scales: {
-                        y: { beginAtZero: true },
-                        x: { display: true }
-                    }
-                }
+        function playVictoryFanfare() {
+            const now = audioCtx.currentTime;
+            const notes = [
+                {f: 523.25, t: 0.0}, {f: 659.25, t: 0.1}, {f: 783.99, t: 0.2}, 
+                {f: 1046.50, t: 0.3, l: 2.0}
+            ];
+            notes.forEach(n => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = n.f;
+                const start = now + n.t;
+                gain.gain.setValueAtTime(0, start);
+                gain.gain.linearRampToValueAtTime(0.3, start + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + (n.l || 0.2));
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(start);
+                osc.stop(start + (n.l || 0.2) + 0.1);
             });
         }
 
-        // 載入數據
-        async function loadData() {
-            if (!userData || !userData.gasUrl) return;
+        // === 6. 煙火系統 ===
+        const fwCanvas = document.getElementById('fireworks');
+        const fwCtx = fwCanvas.getContext('2d');
+        let fireworks = [];
 
-            try {
-                const response = await fetch(userData.gasUrl);
-                const result = await response.json();
-
-                if (result.status === 'success' && result.data) {
-                    updateCharts(result.data);
-                    updateStats(result.data);
-                }
-            } catch (error) {
-                console.error('載入錯誤:', error);
-            }
+        function startFireworks() {
+            fwCanvas.width = window.innerWidth;
+            fwCanvas.height = window.innerHeight;
+            fwCtx.globalCompositeOperation = 'lighter';
+            fireworkLoop();
         }
 
-        // 更新圖表
-        function updateCharts(data) {
-            const maxPoints = 50; // 只顯示最近 50 筆
-            const recentData = data.slice(-maxPoints);
+        function fireworkLoop() {
+            if(gameState !== 'finished') return;
+            requestAnimationFrame(fireworkLoop);
             
-            const labels = recentData.map(item => {
-                const date = new Date(item['時間']);
-                return date.toLocaleTimeString('zh-TW');
-            });
-            const tempValues = recentData.map(item => item['temp值']);
-            const cumulativeValues = recentData.map(item => item['累積temp值']);
+            fwCtx.globalCompositeOperation = 'destination-out';
+            fwCtx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            fwCtx.fillRect(0, 0, fwCanvas.width, fwCanvas.height);
+            fwCtx.globalCompositeOperation = 'lighter';
 
-            tempChart.data.labels = labels;
-            tempChart.data.datasets[0].data = tempValues;
-            tempChart.update('none');
-
-            cumulativeChart.data.labels = labels;
-            cumulativeChart.data.datasets[0].data = cumulativeValues;
-            cumulativeChart.update('none');
+            if (Math.random() < 0.08) fireworks.push(new Firework());
+            fireworks = fireworks.filter(p => p.update());
+            fireworks.forEach(p => p.draw());
         }
 
-        // 更新統計數據
-        function updateStats(data) {
-            document.getElementById('dataCount').textContent = data.length;
+        class Firework {
+            constructor() {
+                this.x = Math.random() * fwCanvas.width;
+                this.y = fwCanvas.height;
+                this.targetY = Math.random() * (fwCanvas.height / 2);
+                this.speed = 10 + Math.random() * 5;
+                this.angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.3;
+                this.vx = Math.cos(this.angle) * this.speed;
+                this.vy = Math.sin(this.angle) * this.speed;
+                this.exploded = false;
+                this.particles = [];
+                this.hue = Math.random() * 360;
+            }
 
-            if (data.length > 0) {
-                const latest = data[data.length - 1];
-                const tempValue = latest['temp值'];
+            update() {
+                if (!this.exploded) {
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.vy += 0.15;
+                    if (this.vy >= 0 || this.y < this.targetY) this.explode();
+                } else {
+                    this.particles.forEach(p => {
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.05;
+                        p.alpha -= 0.02;
+                    });
+                    this.particles = this.particles.filter(p => p.alpha > 0);
+                }
+                return !this.exploded || this.particles.length > 0;
+            }
+
+            explode() {
+                this.exploded = true;
+                playExplosionSound();
                 
-                document.getElementById('latestTemp').textContent = tempValue;
-                document.getElementById('totalTemp').textContent = latest['累積temp值'];
+                // 閃光
+                fwCtx.beginPath();
+                fwCtx.arc(this.x, this.y, 30, 0, Math.PI*2);
+                fwCtx.fillStyle = `hsla(${this.hue}, 100%, 80%, 0.8)`;
+                fwCtx.fill();
 
-                const avgTemp = data.reduce((sum, item) => sum + item['temp值'], 0) / data.length;
-                document.getElementById('avgTemp').textContent = avgTemp.toFixed(2);
+                for (let i = 0; i < 60; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 8;
+                    this.particles.push({
+                        x: this.x, y: this.y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        alpha: 1, 
+                        color: `hsl(${this.hue}, 100%, ${50 + Math.random()*30}%)`
+                    });
+                }
+            }
 
-                // 更新鼓勵訊息（根據 temp 值 0-100）
-                const normalizedValue = Math.min(Math.max(tempValue, 0), 1023);
-                const percentage = (normalizedValue / 1023) * 100;
-                const messageIndex = Math.min(Math.floor(percentage / 5), 19);
-                document.getElementById('motivationText').textContent = motivationMessages[messageIndex];
+            draw() {
+                if (!this.exploded) {
+                    fwCtx.beginPath();
+                    fwCtx.arc(this.x, this.y, 4, 0, Math.PI*2);
+                    fwCtx.fillStyle = `hsl(${this.hue}, 100%, 50%)`;
+                    fwCtx.fill();
+                } else {
+                    this.particles.forEach(p => {
+                        fwCtx.save();
+                        fwCtx.globalAlpha = p.alpha;
+                        fwCtx.fillStyle = p.color;
+                        fwCtx.beginPath();
+                        fwCtx.arc(p.x, p.y, 3, 0, Math.PI*2);
+                        fwCtx.fill();
+                        fwCtx.restore();
+                    });
+                }
             }
         }
 
-        // 確認重置
-        function confirmReset() {
-            if (confirm('⚠️ 確定要清除所有數據嗎？此操作無法復原！')) {
-                resetData();
+        function playExplosionSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        window.addEventListener('resize', () => {
+            if(camera && renderer) {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
             }
-        }
-
-        // 重置數據
-        async function resetData() {
-            tempChart.data.labels = [];
-            tempChart.data.datasets[0].data = [];
-            tempChart.update();
-
-            cumulativeChart.data.labels = [];
-            cumulativeChart.data.datasets[0].data = [];
-            cumulativeChart.update();
-
-            document.getElementById('dataCount').textContent = '0';
-            document.getElementById('latestTemp').textContent = '--';
-            document.getElementById('avgTemp').textContent = '--';
-            document.getElementById('totalTemp').textContent = '--';
-            document.getElementById('motivationText').textContent = '數據已清除';
-
-            showStatus('✅ 數據已清除！', 'success');
-        }
-
-        // 顯示狀態訊息
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('statusMessage');
-            statusDiv.textContent = message;
-            statusDiv.className = 'status ' + type;
-            statusDiv.classList.remove('hidden');
-
-            setTimeout(() => {
-                statusDiv.classList.add('hidden');
-            }, 3000);
-        }
-
-        // 開始自動更新（每秒）
-        function startAutoUpdate() {
-            stopAutoUpdate();
-            updateInterval = setInterval(loadData, 1000);
-        }
-
-        // 停止自動更新
-        function stopAutoUpdate() {
-            if (updateInterval) {
-                clearInterval(updateInterval);
-                updateInterval = null;
+            if(fwCanvas) {
+                fwCanvas.width = window.innerWidth;
+                fwCanvas.height = window.innerHeight;
             }
-        }
+        });
 
-        // 初始化
-        window.onload = checkLogin;
     </script>
 </body>
 </html>
