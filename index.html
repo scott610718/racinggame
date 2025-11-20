@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D1 Mini 溫度監控系統</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 星空背景 */
+        #starfield {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* 登入介面 */
+        .login-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-box {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 90%;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .login-box h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 主要內容 */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .user-info-display {
+            color: #666;
+            font-size: 1.1em;
+            margin-top: 15px;
+        }
+
+        .user-info-display strong {
+            color: #333;
+        }
+
+        /* 主題選擇器 */
+        .theme-selector {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .theme-selector h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .theme-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .theme-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .theme-btn:hover {
+            transform: scale(1.05);
+        }
+
+        /* 控制面板 */
+        .controls {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 30px;
+            font-size: 1em;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+
+        /* 統計卡片 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card h3 {
+            color: #666;
+            font-size: 1em;
+            margin-bottom: 10px;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        /* 圖表容器 */
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .chart-container h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        /* 鼓勵訊息 */
+        .motivation-container {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+
+        .motivation-text {
+            font-size: 2em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientShift 3s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% {
+                background-position: 0% 50%;
+            }
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        .status {
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .charts {
+                grid-template-columns: 1fr;
+            }
+
+            .motivation-text {
+                font-size: 1.5em;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 星空背景 -->
+    <canvas id="starfield"></canvas>
+
+    <!-- 登入介面 -->
+    <div id="loginContainer" class="login-container">
+        <div class="login-box">
+            <h1>🌟 歡迎使用監控系統</h1>
+            <div class="input-group">
+                <label for="loginName">使用者姓名 *</label>
+                <input type="text" id="loginName" placeholder="請輸入您的姓名" required>
+            </div>
+            <div class="input-group">
+                <label for="loginEmail">電子郵件 *</label>
+                <input type="email" id="loginEmail" placeholder="請輸入您的email" required>
+            </div>
+            <div class="input-group">
+                <label for="loginDevice">設備名稱 *</label>
+                <input type="text" id="loginDevice" placeholder="請輸入設備名稱" required>
+            </div>
+            <div class="input-group">
+                <label for="loginGasUrl">Google Apps Script URL *</label>
+                <input type="text" id="loginGasUrl" placeholder="請貼上您的GAS URL" required>
+            </div>
+            <button class="login-btn" onclick="handleLogin()">🚀 開始監控</button>
+        </div>
+    </div>
+
+    <!-- 主要內容 -->
+    <div id="mainContent" class="container hidden">
+        <div class="header">
+            <h1>🌡️ D1 Mini 溫度監控系統</h1>
+            <div class="user-info-display">
+                <p>👤 使用者：<strong id="displayName"></strong> | 🔧 設備：<strong id="displayDevice"></strong></p>
+            </div>
+        </div>
+
+        <div class="theme-selector">
+            <h3>🎨 選擇主題顏色</h3>
+            <div class="theme-buttons">
+                <button class="theme-btn" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);" onclick="changeTheme('purple')">紫色夢幻</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);" onclick="changeTheme('pink')">粉紅浪漫</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="changeTheme('blue')">藍色海洋</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);" onclick="changeTheme('green')">綠色森林</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);" onclick="changeTheme('sunset')">日落餘暉</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);" onclick="changeTheme('ocean')">深海藍調</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #ff9a56 0%, #ff6a88 100%);" onclick="changeTheme('fire')">火焰橙紅</button>
+                <button class="theme-btn" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);" onclick="changeTheme('pastel')">粉彩清新</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="button-group">
+                <button class="btn-primary" onclick="loadData()">🔄 手動重新載入</button>
+                <button class="btn-danger" onclick="confirmReset()">🗑️ 清除所有數據</button>
+                <button class="btn-primary" onclick="logout()">🚪 登出</button>
+            </div>
+            <div id="statusMessage" class="status hidden"></div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <h3>資料筆數</h3>
+                <div class="value" id="dataCount">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>最新 Temp 值</h3>
+                <div class="value" id="latestTemp">--</div>
+            </div>
+            <div class="stat-card">
+                <h3>平均 Temp 值</h3>
+                <div class="value" id="avgTemp">--</div>
+            </div>
+            <div class="stat-card">
+                <h3>累積 Temp 值</h3>
+                <div class="value" id="totalTemp">--</div>
+            </div>
+        </div>
+
+        <div class="motivation-container">
+            <div class="motivation-text" id="motivationText">等待數據中...</div>
+        </div>
+
+        <div class="charts">
+            <div class="chart-container">
+                <h2>📊 Temp 值變化趨勢</h2>
+                <canvas id="tempChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>📈 累積 Temp 值趨勢</h2>
+                <canvas id="cumulativeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tempChart, cumulativeChart;
+        let userData = null;
+        let updateInterval = null;
+        let currentTheme = 'purple';
+
+        // 主題配色
+        const themes = {
+            purple: {
+                gradient: ['#667eea', '#764ba2'],
+                stars: '#ffffff'
+            },
+            pink: {
+                gradient: ['#f093fb', '#f5576c'],
+                stars: '#ffddee'
+            },
+            blue: {
+                gradient: ['#4facfe', '#00f2fe'],
+                stars: '#e0f7ff'
+            },
+            green: {
+                gradient: ['#43e97b', '#38f9d7'],
+                stars: '#d4ffea'
+            },
+            sunset: {
+                gradient: ['#fa709a', '#fee140'],
+                stars: '#fff5e0'
+            },
+            ocean: {
+                gradient: ['#30cfd0', '#330867'],
+                stars: '#a0e0ff'
+            },
+            fire: {
+                gradient: ['#ff9a56', '#ff6a88'],
+                stars: '#ffe0cc'
+            },
+            pastel: {
+                gradient: ['#a8edea', '#fed6e3'],
+                stars: '#ffffff'
+            }
+        };
+
+        // 鼓勵訊息（根據 temp 值 0-100 分成 20 種）
+        const motivationMessages = [
+            "🌟 開始的第一步！繼續加油！",
+            "💫 表現不錯，保持下去！",
+            "✨ 穩定進步中，很好！",
+            "🌠 你正在進步，繼續努力！",
+            "⭐ 做得很好，再接再厲！",
+            "🌈 進展順利，太棒了！",
+            "🎯 準確度提升中，讚！",
+            "🚀 效率越來越高了！",
+            "💪 表現優異，持續加油！",
+            "🔥 熱力全開，太厲害了！",
+            "🎉 達到中等水平，真棒！",
+            "🌺 越來越穩定了！",
+            "💎 品質提升中，優秀！",
+            "🏆 表現卓越，令人驚艷！",
+            "👏 非常出色的表現！",
+            "🎊 超越預期，太強了！",
+            "🌟 接近完美的表現！",
+            "💯 幾乎完美了，超讚！",
+            "🏅 卓越表現，金牌水準！",
+            "👑 完美表現，你是冠軍！"
+        ];
+
+        // 星空背景
+        const canvas = document.getElementById('starfield');
+        const ctx = canvas.getContext('2d');
+        let stars = [];
+
+        function initStarfield() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            stars = [];
+            for (let i = 0; i < 200; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 2,
+                    speed: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+
+        function drawStarfield() {
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            const colors = themes[currentTheme].gradient;
+            gradient.addColorStop(0, colors[0]);
+            gradient.addColorStop(1, colors[1]);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = themes[currentTheme].stars;
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+
+            requestAnimationFrame(drawStarfield);
+        }
+
+        window.addEventListener('resize', initStarfield);
+        initStarfield();
+        drawStarfield();
+
+        // 登入處理
+        function handleLogin() {
+            const name = document.getElementById('loginName').value.trim();
+            const email = document.getElementById('loginEmail').value.trim();
+            const device = document.getElementById('loginDevice').value.trim();
+            const gasUrl = document.getElementById('loginGasUrl').value.trim();
+
+            if (!name || !email || !device || !gasUrl) {
+                alert('請填寫所有必填欄位！');
+                return;
+            }
+
+            userData = { name, email, device, gasUrl };
+            localStorage.setItem('userData', JSON.stringify(userData));
+
+            document.getElementById('loginContainer').classList.add('hidden');
+            document.getElementById('mainContent').classList.remove('hidden');
+            
+            document.getElementById('displayName').textContent = name;
+            document.getElementById('displayDevice').textContent = device;
+
+            initCharts();
+            loadData();
+            startAutoUpdate();
+        }
+
+        // 登出
+        function logout() {
+            if (confirm('確定要登出嗎？')) {
+                localStorage.removeItem('userData');
+                stopAutoUpdate();
+                document.getElementById('mainContent').classList.add('hidden');
+                document.getElementById('loginContainer').classList.remove('hidden');
+                
+                document.getElementById('loginName').value = '';
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginDevice').value = '';
+                document.getElementById('loginGasUrl').value = '';
+            }
+        }
+
+        // 檢查登入狀態
+        function checkLogin() {
+            const saved = localStorage.getItem('userData');
+            if (saved) {
+                userData = JSON.parse(saved);
+                document.getElementById('loginName').value = userData.name;
+                document.getElementById('loginEmail').value = userData.email;
+                document.getElementById('loginDevice').value = userData.device;
+                document.getElementById('loginGasUrl').value = userData.gasUrl;
+                
+                document.getElementById('loginContainer').classList.add('hidden');
+                document.getElementById('mainContent').classList.remove('hidden');
+                
+                document.getElementById('displayName').textContent = userData.name;
+                document.getElementById('displayDevice').textContent = userData.device;
+
+                initCharts();
+                loadData();
+                startAutoUpdate();
+            }
+        }
+
+        // 更改主題
+        function changeTheme(theme) {
+            currentTheme = theme;
+            updateMotivationGradient();
+        }
+
+        // 更新鼓勵訊息漸層
+        function updateMotivationGradient() {
+            const colors = themes[currentTheme].gradient;
+            const motivationText = document.getElementById('motivationText');
+            motivationText.style.background = `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`;
+            motivationText.style.webkitBackgroundClip = 'text';
+            motivationText.style.webkitTextFillColor = 'transparent';
+            motivationText.style.backgroundClip = 'text';
+        }
+
+        // 初始化圖表
+        function initCharts() {
+            const ctx1 = document.getElementById('tempChart').getContext('2d');
+            const ctx2 = document.getElementById('cumulativeChart').getContext('2d');
+
+            const colors = themes[currentTheme].gradient;
+
+            tempChart = new Chart(ctx1, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Temp 值',
+                        data: [],
+                        borderColor: colors[0],
+                        backgroundColor: colors[0] + '20',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true },
+                        x: { display: true }
+                    }
+                }
+            });
+
+            cumulativeChart = new Chart(ctx2, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '累積 Temp 值',
+                        data: [],
+                        borderColor: colors[1],
+                        backgroundColor: colors[1] + '20',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: true, position: 'top' }
+                    },
+                    scales: {
+                        y: { beginAtZero: true },
+                        x: { display: true }
+                    }
+                }
+            });
+        }
+
+        // 載入數據
+        async function loadData() {
+            if (!userData || !userData.gasUrl) return;
+
+            try {
+                const response = await fetch(userData.gasUrl);
+                const result = await response.json();
+
+                if (result.status === 'success' && result.data) {
+                    updateCharts(result.data);
+                    updateStats(result.data);
+                }
+            } catch (error) {
+                console.error('載入錯誤:', error);
+            }
+        }
+
+        // 更新圖表
+        function updateCharts(data) {
+            const maxPoints = 50; // 只顯示最近 50 筆
+            const recentData = data.slice(-maxPoints);
+            
+            const labels = recentData.map(item => {
+                const date = new Date(item['時間']);
+                return date.toLocaleTimeString('zh-TW');
+            });
+            const tempValues = recentData.map(item => item['temp值']);
+            const cumulativeValues = recentData.map(item => item['累積temp值']);
+
+            tempChart.data.labels = labels;
+            tempChart.data.datasets[0].data = tempValues;
+            tempChart.update('none');
+
+            cumulativeChart.data.labels = labels;
+            cumulativeChart.data.datasets[0].data = cumulativeValues;
+            cumulativeChart.update('none');
+        }
+
+        // 更新統計數據
+        function updateStats(data) {
+            document.getElementById('dataCount').textContent = data.length;
+
+            if (data.length > 0) {
+                const latest = data[data.length - 1];
+                const tempValue = latest['temp值'];
+                
+                document.getElementById('latestTemp').textContent = tempValue;
+                document.getElementById('totalTemp').textContent = latest['累積temp值'];
+
+                const avgTemp = data.reduce((sum, item) => sum + item['temp值'], 0) / data.length;
+                document.getElementById('avgTemp').textContent = avgTemp.toFixed(2);
+
+                // 更新鼓勵訊息（根據 temp 值 0-100）
+                const normalizedValue = Math.min(Math.max(tempValue, 0), 1023);
+                const percentage = (normalizedValue / 1023) * 100;
+                const messageIndex = Math.min(Math.floor(percentage / 5), 19);
+                document.getElementById('motivationText').textContent = motivationMessages[messageIndex];
+            }
+        }
+
+        // 確認重置
+        function confirmReset() {
+            if (confirm('⚠️ 確定要清除所有數據嗎？此操作無法復原！')) {
+                resetData();
+            }
+        }
+
+        // 重置數據
+        async function resetData() {
+            tempChart.data.labels = [];
+            tempChart.data.datasets[0].data = [];
+            tempChart.update();
+
+            cumulativeChart.data.labels = [];
+            cumulativeChart.data.datasets[0].data = [];
+            cumulativeChart.update();
+
+            document.getElementById('dataCount').textContent = '0';
+            document.getElementById('latestTemp').textContent = '--';
+            document.getElementById('avgTemp').textContent = '--';
+            document.getElementById('totalTemp').textContent = '--';
+            document.getElementById('motivationText').textContent = '數據已清除';
+
+            showStatus('✅ 數據已清除！', 'success');
+        }
+
+        // 顯示狀態訊息
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.classList.remove('hidden');
+
+            setTimeout(() => {
+                statusDiv.classList.add('hidden');
+            }, 3000);
+        }
+
+        // 開始自動更新（每秒）
+        function startAutoUpdate() {
+            stopAutoUpdate();
+            updateInterval = setInterval(loadData, 1000);
+        }
+
+        // 停止自動更新
+        function stopAutoUpdate() {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+
+        // 初始化
+        window.onload = checkLogin;
+    </script>
+</body>
+</html>
