@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>極速溫控 - 雙人 3D 賽車對決 (Ultimate Edition)</title>
+    <!-- 修改點 1: 網頁標題更新 -->
+    <title>黑客松-走路發電-雙人3D賽車對決</title>
     <!-- 引入 Three.js 用於 3D 渲染 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&family=Roboto:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Russo+One&family=Roboto:wght@400;700&family=Noto+Sans+TC:wght@700&display=swap');
 
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
-        body { overflow: hidden; background-color: #000; font-family: 'Roboto', sans-serif; color: white; }
+        body { overflow: hidden; background-color: #000; font-family: 'Roboto', 'Noto Sans TC', sans-serif; color: white; }
 
         /* UI 層級管理 */
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
@@ -33,14 +34,18 @@
         }
 
         .title-text {
-            font-family: 'Black Ops One', cursive;
-            font-size: 4rem;
+            /* 修改點: 調整字體大小以適應長標題，並支援中文粗體 */
+            font-family: 'Black Ops One', 'Noto Sans TC', cursive;
+            font-size: 3rem; 
             background: linear-gradient(to right, #00f2ff, #eb00ff);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 20px;
             text-shadow: 0 0 30px rgba(0, 242, 255, 0.5);
-            letter-spacing: 5px;
+            letter-spacing: 2px;
+            text-align: center;
+            line-height: 1.3;
+            padding: 0 20px;
         }
 
         .setup-container {
@@ -226,7 +231,8 @@
 
     <!-- UI 介面 -->
     <div id="login-screen">
-        <div class="title-text">極速溫控賽車</div>
+        <!-- 修改點 1: 標題文字更新 -->
+        <div class="title-text">黑客松-走路發電<br>雙人3D賽車對決</div>
         
         <div class="setup-container">
             <!-- 玩家 1 設定 -->
@@ -385,7 +391,7 @@
             gameState = 'playing';
             startDataFetching();
             startEngineSound();
-            startRetroBGM();
+            startRockBGM(); // 啟動搖滾 BGM
             animate();
         }
 
@@ -532,6 +538,10 @@
             carGroup.add(flame2);
 
             carGroup.position.set(xPos, 0, 0);
+            
+            // 跑車旋轉 180 度，車尾朝向玩家
+            carGroup.rotation.y = Math.PI; 
+
             return carGroup;
         }
 
@@ -652,6 +662,7 @@
             if (fetchInterval) clearInterval(fetchInterval);
             stopEngineSound();
             stopBackgroundMusic(); 
+            // 修改點 2: 播放更激烈的慶祝音樂
             playVictoryFanfare(); 
 
             const overlay = document.getElementById('winner-overlay');
@@ -670,7 +681,8 @@
             if (gameState === 'playing' || gameState === 'finished') {
                 const maxSpeed = Math.max(players[0].speed, players[1].speed);
                 const displaySpeed = maxSpeed > 0 ? maxSpeed : 0;
-                const moveSpeed = displaySpeed * 0.2; // 環境移動速度
+                // 環境移動速度
+                const moveSpeed = displaySpeed * 0.06; 
 
                 // 1. 地板移動
                 gridHelper.position.z += moveSpeed;
@@ -738,7 +750,8 @@
                 lfoGain.connect(osc.frequency);
                 lfo.start();
 
-                gain.gain.value = 0.03;
+                // 音量適中，與 BGM 混合
+                gain.gain.value = 0.08;
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
                 osc.start();
@@ -750,13 +763,13 @@
             engineOscillators.forEach(osc => { if(osc) try { osc.stop(); } catch(e){} });
         }
 
-        // BGM
+        // *** ROCK BGM 系統 ***
         let bgmNoteTime = 0;
         let bgmNoteIndex = 0;
-        const tempo = 140; 
+        const tempo = 145; // 加快節奏
         const scheduleAheadTime = 0.1;
 
-        function startRetroBGM() {
+        function startRockBGM() {
             bgmNoteTime = audioCtx.currentTime;
             bgmNoteIndex = 0;
             bgmInterval = setInterval(scheduler, 25);
@@ -768,78 +781,199 @@
 
         function scheduler() {
             while (bgmNoteTime < audioCtx.currentTime + scheduleAheadTime) {
-                playBGMNote(bgmNoteTime, bgmNoteIndex);
+                playRockNote(bgmNoteTime, bgmNoteIndex);
                 advanceNote();
             }
         }
 
         function advanceNote() {
             const secondsPerBeat = 60.0 / tempo;
-            bgmNoteTime += 0.25 * secondsPerBeat;
+            bgmNoteTime += 0.25 * secondsPerBeat; // 16th notes
             bgmNoteIndex++;
         }
 
-        function playBGMNote(time, index) {
-            const beat = index % 16;
-            // Bass (Square)
-            const bassOsc = audioCtx.createOscillator();
-            const bassGain = audioCtx.createGain();
-            bassOsc.type = 'square';
-            bassOsc.connect(bassGain);
-            bassGain.connect(audioCtx.destination);
+        // 搖滾樂生成器
+        function playRockNote(time, index) {
+            const beat = index % 16; // 4/4 拍，一小節 16 個 16 分音符
+            const measure = Math.floor(index / 16) % 4; // 4 小節循環
 
-            // F-Zero Style Bassline (roughly)
-            let freq = 0;
-            // E2 baseline
-            if([0, 2, 4, 6].includes(beat)) freq = 82.41; // E2
-            if([8, 10].includes(beat)) freq = 98.00; // G2
-            if([12, 14].includes(beat)) freq = 110.00; // A2
+            // 1. 爵士鼓 (Drums)
+            // Kick: 強拍 1, 3 (index 0, 8)
+            if (beat === 0 || beat === 8) playKick(time);
+            // Snare: 強拍 2, 4 (index 4, 12) + 幽靈音
+            if (beat === 4 || beat === 12) playSnare(time);
+            // Hi-hat: 8 分音符
+            if (beat % 2 === 0) playHiHat(time, beat % 4 === 0); // 強拍開鈸
 
-            if(freq > 0) {
-                bassOsc.frequency.value = freq;
-                bassGain.gain.setValueAtTime(0.15, time);
-                bassGain.gain.exponentialRampToValueAtTime(0.01, time + 0.1);
-                bassOsc.start(time);
-                bassOsc.stop(time + 0.15);
+            // 2. 貝斯 (Bass) - 驅動感 (8th notes)
+            if (beat % 2 === 0) {
+                let freq = 41.2; // E1 (低音 E)
+                if(measure === 1) freq = 49.0; // G1
+                if(measure === 2) freq = 55.0; // A1
+                playBass(time, freq);
             }
-            
-            // Hi-hat
-            if(beat % 2 !== 0) playNoise(time);
+
+            // 3. 吉他 (Guitar Power Chords) - 在強拍刷下去
+            if (beat === 0) {
+                let root = 82.41; // E2
+                if(measure === 1) root = 98.00; // G2
+                if(measure === 2) root = 110.00; // A2
+                playPowerChord(time, root);
+            }
         }
 
-        function playNoise(time) {
-            const bufferSize = audioCtx.sampleRate * 0.05;
+        // --- 樂器合成 ---
+
+        function playKick(time) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(150, time);
+            osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+            gain.gain.setValueAtTime(0.6, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(time);
+            osc.stop(time + 0.5);
+        }
+
+        function playSnare(time) {
+            const noiseBuffer = createNoiseBuffer();
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            const noiseFilter = audioCtx.createBiquadFilter();
+            noiseFilter.type = 'highpass';
+            noiseFilter.frequency.value = 1000;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.4, time);
+            gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+            noise.connect(noiseFilter);
+            noiseFilter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start(time);
+            noise.stop(time + 0.2);
+        }
+
+        function playHiHat(time, isOpen) {
+            const noiseBuffer = createNoiseBuffer();
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = noiseBuffer;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 5000;
+            const gain = audioCtx.createGain();
+            const vol = isOpen ? 0.15 : 0.05;
+            const dur = isOpen ? 0.1 : 0.05;
+            gain.gain.setValueAtTime(vol, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            noise.start(time);
+            noise.stop(time + dur);
+        }
+
+        function playBass(time, freq) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth'; // 鋸齒波比較有 BASS 的顆粒感
+            osc.frequency.setValueAtTime(freq, time);
+            gain.gain.setValueAtTime(0.3, time);
+            gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+            
+            // 簡單的低通濾波器讓 BASS 更沉
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+            
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(time);
+            osc.stop(time + 0.25);
+        }
+
+        function playPowerChord(time, rootFreq) {
+            // Power Chord = Root + 5th
+            const fifthFreq = rootFreq * 1.5;
+            
+            [rootFreq, fifthFreq].forEach(f => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth'; // 鋸齒波模擬失真吉他
+                osc.frequency.setValueAtTime(f, time);
+                
+                // 稍微走音創造厚度
+                osc.detune.value = (Math.random() - 0.5) * 10; 
+
+                gain.gain.setValueAtTime(0.1, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 1.5); // 延音長一點
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(time);
+                osc.stop(time + 1.6);
+            });
+        }
+
+        let _noiseBuffer = null;
+        function createNoiseBuffer() {
+            if(_noiseBuffer) return _noiseBuffer;
+            const bufferSize = audioCtx.sampleRate * 2.0; // 2 seconds
             const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
             const data = buffer.getChannelData(0);
             for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-            const noise = audioCtx.createBufferSource();
-            noise.buffer = buffer;
-            const gain = audioCtx.createGain();
-            gain.gain.value = 0.08;
-            noise.connect(gain);
-            gain.connect(audioCtx.destination);
-            noise.start(time);
+            _noiseBuffer = buffer;
+            return buffer;
         }
 
+        // 修改點 2: 更高昂激烈的慶祝音樂
         function playVictoryFanfare() {
             const now = audioCtx.currentTime;
-            const notes = [
-                {f: 523.25, t: 0.0}, {f: 659.25, t: 0.1}, {f: 783.99, t: 0.2}, 
-                {f: 1046.50, t: 0.3, l: 2.0}
+            
+            // 旋律: 快速上升的琶音與高能量脈衝 (C5 -> E5 -> G5 -> C6 -> G5 -> C6 -> E6 -> G6)
+            const melody = [
+                {f: 523.25, t: 0.0, d: 0.1}, // C5
+                {f: 659.25, t: 0.1, d: 0.1}, // E5
+                {f: 783.99, t: 0.2, d: 0.1}, // G5
+                {f: 1046.50, t: 0.3, d: 0.1}, // C6
+                {f: 783.99, t: 0.4, d: 0.1}, // G5
+                {f: 1046.50, t: 0.5, d: 0.4}, // C6 (Quarter)
+                
+                {f: 1046.50, t: 1.0, d: 0.1}, // C6
+                {f: 1318.51, t: 1.1, d: 0.1}, // E6
+                {f: 1567.98, t: 1.2, d: 0.8}, // G6 (High!)
             ];
-            notes.forEach(n => {
+
+            melody.forEach(n => {
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
-                osc.type = 'triangle';
+                osc.type = 'square'; // 搖滾/8-bit 風格
                 osc.frequency.value = n.f;
-                const start = now + n.t;
-                gain.gain.setValueAtTime(0, start);
-                gain.gain.linearRampToValueAtTime(0.3, start + 0.05);
-                gain.gain.exponentialRampToValueAtTime(0.001, start + (n.l || 0.2));
+                
+                gain.gain.setValueAtTime(0.2, now + n.t);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + n.t + n.d);
+                
                 osc.connect(gain);
                 gain.connect(audioCtx.destination);
-                osc.start(start);
-                osc.stop(start + (n.l || 0.2) + 0.1);
+                osc.start(now + n.t);
+                osc.stop(now + n.t + n.d + 0.1);
+            });
+
+            // 伴奏: 強力 C 大調和弦打擊
+            [0, 0.5, 1.0].forEach(t => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.value = 130.81; // C3 (低音)
+                
+                gain.gain.setValueAtTime(0.3, now + t);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + t + 0.3);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + t);
+                osc.stop(now + t + 0.4);
             });
         }
 
